@@ -1,0 +1,169 @@
+
+
+im_2_m = double(imread('T2.jpg')); %to be modified 2nd image part a
+
+ im_1=double(imread("T1.jpg")); % actual image 1
+
+im_r=double(imread("T2.jpg"));% actual image 2
+
+%im_3=double(imread("T2.jpg"));% modified image 2 part2
+[row,col]= size(im_2_m);
+correlation_coeffs = zeros(1,21);
+correlation_coeffs_2 = zeros(1,21);
+QMI=zeros(1,21);
+QMI_neg=zeros(1,21);
+t_x=-10:1:10;
+count=1;
+
+%for negative image part
+% im_3 is negative of img1
+im_3_real=255-im_1;
+im_3=im_3_real;
+
+for s=-10:10
+    if s<0
+        for i=1:row
+           for j=1:col-abs(s)
+              im_2_m(i,j)=im_r(i,j+abs(s));
+              im_3(i,j)=im_3_real(i,j+abs(s));
+              if col-j<abs(s)
+                  im_2_m(i,j)=0;
+                  im_3(i,j)=0;
+              end
+           end
+        
+        end
+    end
+    if s>=0
+        for i=1:row
+            for j=1:col-s
+               if j<=s
+                  im_2_m(i,j)=0;
+                  im_3(i,j)=0;
+               else
+                  im_2_m(i,j)=im_r(i,j-s);
+                  im_3(i,j)=im_3_real(i,j-s);
+               end
+            end
+        end
+    end
+     correlation_coeffs(1,count)=corr2(im_1,im_2_m);
+     correlation_coeffs_2(1,count)=corr(im_1,im_3);
+     %
+     joint_hist=hist2(im_1,im_2_m,row,col);
+     joint_hist_2=hist2(im_1,im_3,row,col);
+     %
+     marginal_I_1=marginal_I1(joint_hist);
+     marginal_I_2=marginal_I2(joint_hist);
+     %
+     marginal_I_1_neg=marginal_I1(joint_hist_2);
+     marginal_I_2_neg=marginal_I2(joint_hist_2);
+     %
+     QMI(1,count)=QMI_cal(joint_hist,marginal_I_1,marginal_I_2);
+     QMI_neg(1,count)=QMI_cal(joint_hist_2,marginal_I_1_neg,marginal_I_2_neg);
+     %
+     count=count+1;
+
+end
+
+
+
+
+figure;
+plot(t_x,correlation_coeffs);
+ylabel("Correlation coefficient");
+xlabel("shift tx")
+title('correlation coefficient','In case of T1 and shifted T2');
+grid on;
+figure;
+plot(t_x,correlation_coeffs_2);
+ylabel("Correlation coefficient");
+xlabel("shift tx");
+title( 'correlation coefficient',"In case of T1 and shifted negative of T1")
+grid on;
+figure
+plot(t_x,QMI);
+ylabel("QMI");
+xlabel("Shift tx");
+title('QMI',"In case of T1 and shifted T2");
+grid on;
+figure;
+plot(t_x,QMI_neg);
+ylabel("QMI");
+xlabel("Shift tx");
+title('QMI',"In case of T1 and shifted negative of T1");
+grid on;
+
+%mini of Is is 0 and max is 255
+%joint histogram routine
+function joint_hist = hist2(im_1,im,row,col)
+  joint_hist=zeros(26,26);
+ 
+for i=1:row
+    for j=1:col
+        im_1_bin=floor(im_1(i,j)/10)+1;
+        im_bin=floor(im(i,j)/10)+1;
+        if im_1_bin>=1 && im_1_bin<=26 && im_bin>=1 && im_bin<=26
+           joint_hist(im_1_bin,im_bin)= joint_hist(im_1_bin,im_bin)+1;
+        end
+
+    end
+end
+for i=1:26
+    for j=1:26
+        joint_hist(i,j)=joint_hist(i,j)/(row*col);
+    end
+end
+%imagesc(joint_hist);
+%custom_colormap=jet(32);
+%colormap(custom_colormap);
+%colorbar;
+%pause;
+end
+
+function marginal_I_1 = marginal_I1(joint_hist)
+marginal_I_1=zeros(1,26);
+  for i=1:26
+    marginal_I_1(1,i)=sum(joint_hist(i,:));
+    
+  end
+end
+ 
+function marginal_I_2 = marginal_I2(joint_hist)
+marginal_I_2=zeros(1,26);
+  for i=1:26
+    marginal_I_2(1,i)=sum(joint_hist(:,i));
+  end
+end
+
+function QMI_out = QMI_cal(joint_hist,marginal_I_1,marginal_I_2)
+  QMI_out=0;
+  for i=1:26
+    for j=1:26
+        QMI_out=QMI_out+(joint_hist(i,j)-marginal_I_1(1,i)*marginal_I_2(1,j))^2;
+    end
+  end
+
+end  
+function correlation_coefficient = corr(X, Y)
+    % Check if input vectors have the same length
+    if length(X) ~= length(Y)
+        error('Input vectors must have the same length');
+    end
+
+    % Calculate the mean of X and Y
+    mean_X = mean(X);
+    mean_Y = mean(Y);
+
+    % Calculate the covariance
+    covariance = sum((X - mean_X) .* (Y - mean_Y)) / (length(X) - 1);
+
+    % Calculate the standard deviations
+    std_X = sqrt(sum((X - mean_X).^2) / (length(X) - 1));
+    std_Y = sqrt(sum((Y - mean_Y).^2) / (length(Y) - 1));
+
+    % Calculate the correlation coefficient
+    correlation_coefficient = covariance/(std_X.*std_Y);
+end
+
+
